@@ -2,6 +2,7 @@ const twilio = require("twilio");
 const jwt = require("jsonwebtoken");
 const User = require("../model/user");
 const OtpVerification = require("../model/otp_verification");
+const axios = require("axios");
 
 const sendVerificationCode = async (req, res) => {
   try {
@@ -10,21 +11,37 @@ const sendVerificationCode = async (req, res) => {
       return res.status(400).json({ error: "Phone number is required" });
     }
     console.log(phoneNumber);
-    const client = new twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    );
+    // const client = new twilio(
+    //   process.env.TWILIO_ACCOUNT_SID,
+    //   process.env.TWILIO_AUTH_TOKEN
+    // );
 
     const verificationCode = Math.floor(
       100000 + Math.random() * 900000
     ).toString();
     const message = `Your verification code is ${verificationCode}`;
 
-    await client.messages.create({
-      body: message,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phoneNumber,
-    });
+    // await client.messages.create({
+    //   body: message,
+    //   from: process.env.TWILIO_PHONE_NUMBER,
+    //   to: phoneNumber,
+    // });
+
+    const response = await axios.post(
+      `${process.env.BASE_TEXTBEE_URL}/gateway/devices/${process.env.TEXTBEE_DEVICE_ID}/send-sms`,
+      {
+        recipients: [`+${phoneNumber}`],
+        message: message,
+      },
+      { headers: { "x-api-key": process.env.TEXTBEE_API_KEY } }
+    );
+
+    if (!response) {
+      return res.status(400).json({
+        error: response.message,
+        message: "Error while sending OTP via SMS",
+      });
+    }
 
     await OtpVerification.create({
       phoneNumber,
